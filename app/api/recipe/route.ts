@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-if (!OPENAI_KEY) console.warn("OPENAI_API_KEY is not set — AI calls will fail");
+// ------ تست OpenAI Key ------
+if (!OPENAI_KEY) {
+  console.error(
+    "⚠️ OPENAI API key تنظیم نشده! مطمئن شو که در .env.local تعریف شده و سرور ریستارت شده."
+  );
+} else {
+  console.log("✅ OPENAI_KEY موجود است:", OPENAI_KEY.slice(0, 5) + "..."); // فقط نمایش ابتدای key برای تست
+}
 
 type ReqBody = { ingredients?: string[] };
 
@@ -22,12 +29,12 @@ export async function POST(req: Request) {
 
     if (!OPENAI_KEY) {
       return NextResponse.json(
-        { error: "OPENAI API key تنظیم نشده." },
+        { error: "⚠️ OPENAI API key تنظیم نشده یا خوانده نمی‌شود." },
         { status: 500 }
       );
     }
 
-    // ------ 1) Generate recipe JSON ------
+    // ------ Recipe generation همان نسخه قبل ------
     const recipePrompt = `
 You are a creative chef AI. ONLY return valid JSON with keys: title, history, steps.
 Do NOT add any text before or after JSON.
@@ -63,18 +70,16 @@ Ingredients: ${ingredients.join(", ")}
       recipeJson?.choices?.[0]?.message?.content ?? ""
     ).trim();
 
-    // ------ 2) Parse JSON با fallback کامل ------
     let recipeObj: any = null;
     try {
       const match = recipeText.match(/\{[\s\S]*\}/);
       if (match) {
         recipeObj = JSON.parse(match[0]);
       }
-    } catch (e) {
-      console.error("Failed to parse recipe JSON:", recipeText, e);
+    } catch {
+      recipeObj = null;
     }
 
-    // fallback: اگر JSON نامعتبر بود، دستور غذا آماده بساز
     if (!recipeObj || !recipeObj.title || !recipeObj.steps) {
       recipeObj = {
         title: "دستور پخت آماده",
@@ -83,7 +88,7 @@ Ingredients: ${ingredients.join(", ")}
       };
     }
 
-    // ------ 3) Generate images ------
+    // ------ Image generation ------
     const imgPrompt = `High-quality appetizing food photo of a dish made from: ${ingredients.join(
       ", "
     )}, close-up, clean background, professional food photography.`;
@@ -117,14 +122,13 @@ Ingredients: ${ingredients.join(", ")}
       }
     }
 
-    // ✅ final response
     return NextResponse.json({
       title: recipeObj.title,
       history: recipeObj.history,
       steps: recipeObj.steps,
       images,
       ingredients,
-      rawRecipeAI: recipeText, // فقط برای debug
+      rawRecipeAI: recipeText,
     });
   } catch (err) {
     console.error("RecipeAPI error:", err);
