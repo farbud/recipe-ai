@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -5,12 +6,12 @@ import { Loader2 } from "lucide-react";
 export default function RecipeForm({
   onGenerate,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onGenerate: (d: any) => void;
 }) {
   const [inputs, setInputs] = useState(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [serverLog, setServerLog] = useState<any>(null);
 
   const update = (i: number, v: string) => {
     const c = [...inputs];
@@ -21,28 +22,41 @@ export default function RecipeForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
+    setServerLog(null);
+
     const filled = inputs.map((s) => s.trim()).filter(Boolean);
     if (filled.length < 3) {
       setErr("حداقل ۳ ماده لازم است.");
       return;
     }
+
     setLoading(true);
+
     try {
       const res = await fetch("/api/recipe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredients: filled }),
       });
+
       const data = await res.json();
+
+      // لاگ دقیق برای Debug
+      console.log("Response status:", res.status);
+      console.log("Response JSON:", data);
+      setServerLog({ status: res.status, data });
+
       if (!res.ok) {
-        setErr(data.error || "خطا");
+        setErr(data.error || "خطا از سرور");
       } else {
         onGenerate(data);
       }
     } catch (e) {
+      console.error("Fetch failed:", e);
       setErr("عدم ارتباط با سرور");
-      console.error(e);
+      setServerLog({ status: "fetch failed", error: e });
     }
+
     setLoading(false);
   };
 
@@ -77,6 +91,13 @@ export default function RecipeForm({
       </div>
 
       {err && <p className="text-red-500 mt-3">{err}</p>}
+
+      {/* لاگ سرور برای debug */}
+      {serverLog && (
+        <div className="mt-3 p-2 bg-gray-200 dark:bg-gray-700 rounded text-sm text-gray-800 dark:text-gray-100 overflow-auto">
+          <pre>{JSON.stringify(serverLog, null, 2)}</pre>
+        </div>
+      )}
     </form>
   );
 }
