@@ -61,6 +61,7 @@ Ingredients: ${ingredients.join(", ")}
     ).trim();
 
     // ------ 2) Parse JSON با fallback کامل ------
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let recipeObj: any = null;
     try {
       const match = recipeText.match(/\{[\s\S]*\}/);
